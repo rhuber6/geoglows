@@ -10,6 +10,7 @@ from shapely.geometry import Point, MultiPoint, shape
 from shapely.ops import nearest_points
 
 ENDPOINT = 'https://geoglows.ecmwf.int/api/'
+CUR_VERSION = 'v2'
 
 __all__ = ['forecast_stats', 'forecast_ensembles', 'forecast_warnings', 'forecast_records', 'historic_simulation',
            'daily_averages', 'monthly_averages', 'return_periods', 'available_data', 'available_dates',
@@ -17,7 +18,7 @@ __all__ = ['forecast_stats', 'forecast_ensembles', 'forecast_warnings', 'forecas
 
 
 def forecast(reach_id: int, return_format: str = 'csv', endpoint: str = ENDPOINT,
-             s: requests.Session = False, **kwargs) -> pd.DataFrame or dict or str:
+             s: requests.Session = False, version: str = CUR_VERSION, **kwargs) -> pd.DataFrame or dict or str:
     """
         Retrieves statistics that summarize the ensemble streamflow forecast for a certain reach_id
 
@@ -43,12 +44,12 @@ def forecast(reach_id: int, return_format: str = 'csv', endpoint: str = ENDPOINT
     """
 
     product = 'Forecast'
-    url = f'{endpoint}/v2/{product}/{reach_id}'
-    return _request_v2(url, return_format, product, s, kwargs)
+    url = f'{endpoint}/{version}/{product}/{reach_id}'
+    return _request(url, return_format, product, s, kwargs)
 
 
 def forecast_stats(reach_id: int, return_format: str = 'csv', date: str = None, units: str = 'cms',
-                   endpoint: str = ENDPOINT, version: int = 2, s: requests.Session = False) -> pd.DataFrame:
+                   endpoint: str = ENDPOINT, s: requests.Session = False, version: str = CUR_VERSION, **kwargs) -> pd.DataFrame:
     """
     Retrieves statistics that summarize the ensemble streamflow forecast for a certain reach_id
 
@@ -70,24 +71,13 @@ def forecast_stats(reach_id: int, return_format: str = 'csv', date: str = None, 
 
             data = geoglows.streamflow.forecast_stats(12341234)
     """
-    method = 'ForecastStats'
-
-    if version == 1:
-        units = 'metric' if units == 'cms' else 'feet'
-        url = f'{endpoint}/{method}?reach_id={reach_id}&return_format={return_format}'
-        params = {'reach_id': reach_id, 'return_format': return_format, 'units': units}
-        if date is not None:
-            params["date"] = date
-        # return the requested data
-        return _request_v1(endpoint, method, params, return_format, s)
-    elif version == 2:
-        ...
-    else:
-        raise ValueError('Version number not supported')
+    product = 'ForecastStats'
+    url = f'{endpoint}/{version}/{product}/{reach_id}'
+    return _request(url, return_format, product, s, kwargs)
 
 
 def forecast_ensembles(reach_id: int, return_format: str = 'csv', forecast_date: str = None,
-                       endpoint: str = ENDPOINT, s: requests.Session = False) -> pd.DataFrame:
+                       endpoint: str = ENDPOINT, s: requests.Session = False, version: str = CUR_VERSION) -> pd.DataFrame:
     """
     Retrieves each ensemble from the most recent streamflow forecast for a certain reach_id
 
@@ -109,22 +99,22 @@ def forecast_ensembles(reach_id: int, return_format: str = 'csv', forecast_date:
 
             data = geoglows.streamflow.forecast_ensembles(12341234)
     """
-    method = 'ForecastEnsembles'
+    product = 'ForecastEnsembles'
 
     # if you only wanted the url, quit here
     if return_format == 'url':
-        return f'{endpoint}{method}?reach_id={reach_id}'
+        return f'{endpoint}{product}?reach_id={reach_id}'
 
     params = {'reach_id': reach_id, 'return_format': return_format}
     if forecast_date is not None:
         params["date"] = forecast_date
 
     # return the requested data
-    return _request_v1(endpoint, method, params, return_format, s)
+    return _request(endpoint, product, params, return_format, s)
 
 
 def forecast_warnings(region: str = 'all', return_format='csv',
-                      endpoint=ENDPOINT, s: requests.Session = False) -> pd.DataFrame:
+                      endpoint=ENDPOINT, s: requests.Session = False, version: str = CUR_VERSION) -> pd.DataFrame:
     """
     Retrieves a csv listing streams likely to experience a return period level flow during the forecast period.
 
@@ -143,18 +133,18 @@ def forecast_warnings(region: str = 'all', return_format='csv',
 
             data = geoglows.streamflow.forecast_warnings('australia-geoglows')
     """
-    method = 'ForecastWarnings'
+    product = 'ForecastWarnings'
 
     # if you only wanted the url, quit here
     if return_format == 'url':
-        return endpoint + method + f'?region={region}'
+        return endpoint + product + f'?region={region}'
 
     # return the requested data
-    return _request_v1(endpoint, method, {'region': region, 'return_format': return_format}, return_format, s)
+    return _request(endpoint, product, {'region': region, 'return_format': return_format}, return_format, s)
 
 
 def forecast_records(reach_id: int, start_date: str = None, end_date: str = None,  return_format='csv',
-                     endpoint=ENDPOINT, s: requests.Session = False) -> pd.DataFrame:
+                     endpoint=ENDPOINT, s: requests.Session = False, version: str = CUR_VERSION) -> pd.DataFrame:
     """
     Retrieves a csv showing the ensemble average forecasted flow for the year from January 1 to the current date
 
@@ -177,11 +167,11 @@ def forecast_records(reach_id: int, start_date: str = None, end_date: str = None
 
             data = geoglows.streamflow.forecast_warnings('australia-geoglows')
     """
-    method = 'ForecastRecords'
+    product = 'ForecastRecords'
 
     # if you only wanted the url, quit here
     if return_format == 'url':
-        return f'{endpoint}{method}?reach_id={reach_id}'
+        return f'{endpoint}{product}?reach_id={reach_id}'
 
     params = {'reach_id': reach_id, 'return_format': return_format}
     if start_date is not None:
@@ -190,11 +180,11 @@ def forecast_records(reach_id: int, start_date: str = None, end_date: str = None
         params["end_date"] = end_date
 
     # return the requested data
-    return _request_v1(endpoint, method, params, return_format, s)
+    return _request(endpoint, product, params, return_format, s)
 
 
 def historic_simulation(reach_id: int, return_format='csv', forcing='era_5',
-                        endpoint=ENDPOINT, s: requests.Session = False) -> pd.DataFrame:
+                        endpoint=ENDPOINT, s: requests.Session = False, version: str = CUR_VERSION) -> pd.DataFrame:
     """
     Retrieves a historical streamflow simulation derived from a specified forcing for a certain reach_id
 
@@ -216,19 +206,19 @@ def historic_simulation(reach_id: int, return_format='csv', forcing='era_5',
 
             data = geoglows.streamflow.historic_simulation(12341234)
     """
-    method = 'HistoricSimulation'
+    product = 'HistoricSimulation'
 
     # if you only wanted the url, quit here
     if return_format == 'url':
-        return f'{endpoint}{method}?reach_id={reach_id}&forcing={forcing}'
+        return f'{endpoint}{product}?reach_id={reach_id}&forcing={forcing}'
 
     # return the requested data
     params = {'reach_id': reach_id, 'forcing': forcing, 'return_format': return_format}
-    return _request_v1(endpoint, method, params, return_format, s)
+    return _request(endpoint, product, params, return_format, s)
 
 
 def daily_averages(reach_id: int, return_format='csv', forcing='era_5',
-                   endpoint=ENDPOINT, s: requests.Session = False) -> pd.DataFrame:
+                   endpoint=ENDPOINT, s: requests.Session = False, version: str = CUR_VERSION) -> pd.DataFrame:
     """
     Retrieves the average flow for every day of the year at a certain reach_id.
 
@@ -250,19 +240,19 @@ def daily_averages(reach_id: int, return_format='csv', forcing='era_5',
 
             data = geoglows.streamflow.seasonal_average(12341234)
     """
-    method = 'DailyAverages'
+    product = 'DailyAverages'
 
     # if you only wanted the url, quit here
     if return_format == 'url':
-        return f'{endpoint}{method}?reach_id={reach_id}&forcing={forcing}'
+        return f'{endpoint}{product}?reach_id={reach_id}&forcing={forcing}'
 
     # return the requested data
     params = {'reach_id': reach_id, 'forcing': forcing, 'return_format': return_format}
-    return _request_v1(endpoint, method, params, return_format, s)
+    return _request(endpoint, product, params, return_format, s)
 
 
 def monthly_averages(reach_id: int, return_format='csv', forcing='era_5',
-                     endpoint=ENDPOINT, s: requests.Session = False) -> pd.DataFrame:
+                     endpoint=ENDPOINT, s: requests.Session = False, version: str = CUR_VERSION) -> pd.DataFrame:
     """
     Retrieves the average flow for each month at a certain reach_id.
 
@@ -284,19 +274,19 @@ def monthly_averages(reach_id: int, return_format='csv', forcing='era_5',
 
             data = geoglows.streamflow.seasonal_average(12341234)
     """
-    method = 'MonthlyAverages'
+    product = 'MonthlyAverages'
 
     # if you only wanted the url, quit here
     if return_format == 'url':
-        return f'{endpoint}{method}?reach_id={reach_id}&forcing={forcing}'
+        return f'{endpoint}{product}?reach_id={reach_id}&forcing={forcing}'
 
     # return the requested data
     params = {'reach_id': reach_id, 'forcing': forcing, 'return_format': return_format}
-    return _request_v1(endpoint, method, params, return_format, s)
+    return _request(endpoint, product, params, return_format, s)
 
 
 def return_periods(reach_id: int, return_format='csv', forcing='era_5',
-                   endpoint=ENDPOINT, s: requests.Session = False) -> pd.DataFrame:
+                   endpoint=ENDPOINT, s: requests.Session = False, version: str = CUR_VERSION) -> pd.DataFrame:
     """
     Retrieves the return period thresholds based on a specified historic simulation forcing on a certain reach_id.
 
@@ -318,19 +308,19 @@ def return_periods(reach_id: int, return_format='csv', forcing='era_5',
 
             data = geoglows.streamflow.return_periods(12341234)
     """
-    method = 'ReturnPeriods'
+    product = 'ReturnPeriods'
 
     # if you only wanted the url, quit here
     if return_format == 'url':
-        return f'{endpoint}{method}?reach_id={reach_id}&forcing={forcing}'
+        return f'{endpoint}{product}?reach_id={reach_id}&forcing={forcing}'
 
     # return the requested data
     params = {'reach_id': reach_id, 'forcing': forcing, 'return_format': return_format}
 
-    return _request_v1(endpoint, method, params, return_format, s)
+    return _request(endpoint, product, params, return_format, s)
 
 
-def available_data(endpoint: str = ENDPOINT, return_format='json', s: requests.Session = False) -> dict or str:
+def available_data(endpoint: str = ENDPOINT, return_format='json', s: requests.Session = False, version: str = CUR_VERSION) -> dict or str:
     """
     Returns a dictionary with a key for each available_regions containing the available_dates for that region
 
@@ -348,17 +338,17 @@ def available_data(endpoint: str = ENDPOINT, return_format='json', s: requests.S
             data = geoglows.streamflow.available_data()
 
     """
-    method = 'AvailableData'
+    product = 'AvailableData'
 
     # if you only wanted the url, quit here
     if return_format == 'url':
-        return endpoint + method
+        return endpoint + product
 
     # return the requested data
-    return _request_v1(endpoint, method, {}, return_format, s)
+    return _request(endpoint, product, {}, return_format, s)
 
 
-def available_regions(endpoint: str = ENDPOINT, return_format='json', s: requests.Session = False) -> dict or str:
+def available_regions(endpoint: str = ENDPOINT, return_format='json', s: requests.Session = False, version: str = CUR_VERSION) -> dict or str:
     """
     Retrieves a list of regions available at the endpoint
 
@@ -376,17 +366,17 @@ def available_regions(endpoint: str = ENDPOINT, return_format='json', s: request
 
             data = geoglows.streamflow.available_regions(12341234)
     """
-    method = 'AvailableRegions'
+    product = 'AvailableRegions'
 
     if return_format == 'url':
-        return endpoint + method
+        return endpoint + product
 
     # return the requested data
-    return _request_v1(endpoint, method, {}, return_format, s)
+    return _request(endpoint, product, {}, return_format, s)
 
 
 def available_dates(reach_id: int = None, region: str = None, return_format: str = 'json',
-                    endpoint: str = ENDPOINT, s: requests.Session = False) -> dict or str:
+                    endpoint: str = ENDPOINT, s: requests.Session = False, version: str = CUR_VERSION) -> dict or str:
     """
     Retrieves the list of dates of stored streamflow forecasts. You need to specify either a reach_id or a region.
 
@@ -406,7 +396,7 @@ def available_dates(reach_id: int = None, region: str = None, return_format: str
 
             data = geoglows.streamflow.available_dates(12341234)
     """
-    method = 'AvailableDates'
+    product = 'AvailableDates'
 
     # you need a region for the api call, so the user needs to provide one or a valid reach_id to get it from
     if region:
@@ -418,10 +408,10 @@ def available_dates(reach_id: int = None, region: str = None, return_format: str
 
     # if you only wanted the url, quit here
     if return_format == 'url':
-        return endpoint + method
+        return endpoint + product
 
     # return the requested data
-    return _request_v1(endpoint, method, params, return_format, s)
+    return _request(endpoint, product, params, return_format, s)
 
 
 # UTILITY FUNCTIONS
@@ -568,7 +558,7 @@ def latlon_to_region(lat: float, lon: float) -> str:
 
 
 # API AUXILIARY FUNCTION
-def _request_v1(url: str, method: str, params: dict, return_format: str, s: requests.Session = False):
+def _request_v1(url: str, product: str, params: dict, return_format: str, s: requests.Session = False):
     # if you only wanted the url, quit here
     if return_format == 'url':
         return url
@@ -577,9 +567,9 @@ def _request_v1(url: str, method: str, params: dict, return_format: str, s: requ
 
     # request the data from the API
     if s:
-        data = s.get(url + method, params=params)
+        data = s.get(url + product, params=params)
     else:
-        data = requests.get(url + method, params=params)
+        data = requests.get(url + product, params=params)
     if data.status_code != 200:
         raise RuntimeError('Recieved an error from the Streamflow REST API: ' + data.text)
 
@@ -588,9 +578,9 @@ def _request_v1(url: str, method: str, params: dict, return_format: str, s: requ
         tmp = pd.read_csv(StringIO(data.text), index_col=0)
         if 'z' in tmp.columns:
             del tmp['z']
-        if method in ('ForecastWarnings/', 'ReturnPeriods/', 'DailyAverages/', 'MonthlyAverages/'):
+        if product in ('ForecastWarnings/', 'ReturnPeriods/', 'DailyAverages/', 'MonthlyAverages/'):
             return tmp
-        if method == 'SeasonalAverage/':
+        if product == 'SeasonalAverage/':
             tmp.index = pd.to_datetime(tmp.index + 1, format='%j').strftime('%b %d')
             return tmp
         tmp.index = pd.to_datetime(tmp.index)
@@ -603,7 +593,7 @@ def _request_v1(url: str, method: str, params: dict, return_format: str, s: requ
         raise ValueError(f'Unsupported return format requested: {return_format}')
 
 
-def _request_v2(endpoint: str, return_format: str, product: str, s: requests.Session, passed_kwargs):
+def _request(endpoint: str, return_format: str, product: str, s: requests.Session, passed_kwargs):
     if return_format == 'url':
         return endpoint
 
